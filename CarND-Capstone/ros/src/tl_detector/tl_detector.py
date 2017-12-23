@@ -54,7 +54,7 @@ class TLDetector(object):
 																												Int32, queue_size=1)
 
 			self.CVbridge = CvBridge()
-			self.light_classifier = TLClassifier()
+			self.light_classifier = TLClassifier(simulation=True)
  
 			self.listener = tf.TransformListener()
 
@@ -233,6 +233,7 @@ class TLDetector(object):
 			state = self.get_light_state(self.lights[i])
 			#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+			rospy.logwarn("classifier returned %d", state)
 			return stop_line_wpix, state
 
 
