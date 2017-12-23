@@ -49,15 +49,79 @@ class WaypointUpdater(object):
 
 		rospy.logwarn ("WaypointUpdater:__init__ done!")
 
-		rospy.spin()
+		#rospy.spin()
+		self.loop()
+
+
+	#------------------------------------------------------------
+	def loop(self):
+
+		rospy.logdebug ("In WPU loop\n")
+		rate = rospy.Rate(10)	# 50
+		while not rospy.is_shutdown():
+
+			# wait for base_waypoints and pose info then 
+			if self.base_waypoints is [] or self.car_pose is None:
+				rate.sleep()
+				continue
+	
+#			rospy.logwarn ("In WPU loop: have waypoints and car_pose")
+			
+			# get the index closest waypoint to car 
+			index = get_closest_waypoint(self.base_waypoints, self.car_pose)
+
+#			if index != self.closest_wp_index:
+#				rospy.logwarn("WPULoop - closest_wp_index = %d", index)
+
+			self.closest_wp_index = index
+
+			if self.closest_wp_index == -1 :
+				rate.sleep()
+				continue
+
+			#---------------------------------------------------------------
+	
+			# otherwise prepare next 	
+			waypoints_ahead = []
+#			rospy.logwarn("\n- preparing Lane - 20 waypoints!!!! starting with wp_ix = %d", self.closest_wp_index)
+
+			for i in range(LOOKAHEAD_WPS):
+				ix = (self.closest_wp_index + i) % len(self.base_waypoints)
+
+				vel = self.velocity 
+				# if we are in the mode of decelerating for a red light
+				if self.vel_incr != 0 :
+					vel = 0
+
+#				rospy.logwarn("WPLoop: setting waypoints[%d] = 0", ix)
+				self.set_waypoint_velocity( self.base_waypoints, 
+														 			  ix, 
+													 			   	vel)
+
+				waypoints_ahead.append(self.base_waypoints[ix])
+
+
+			# structure the data to match the expected styx_msgs/Lane form
+			lane = Lane()
+			lane.waypoints = waypoints_ahead  		# list of waypoints ahead of the car
+			lane.header.stamp = rospy.Time.now()  # timestamp
+			lane.header.frame_id = self.frame_id
+
+			# publish Lane 
+#			rospy.logwarn ("In WPUloop: about to publish lane")
+			self.final_waypoints_pub.publish(lane)
+
+			rate.sleep()
+
 
 
 	#=======================================================
 	# Subscribed to /current_pose msg published by simulator
 	# Simulator calls back with msg 
-	#======================================================
+	##======================================================
 	def pose_cb(self, msg):
-		
+		# TODO: Implement
+
 		#------------------------------------------------------------------------
 		# the msg will be in PoseStamped format
 		# std_msg/Header[seq, timestamp, frameId] 
@@ -68,49 +132,9 @@ class WaypointUpdater(object):
 		self.car_pose = msg.pose					# this contains position and orientation
 		self.frame_id = msg.header.frame_id
 
-
-		if self.base_waypoints is [] :
-			return
-
-		# get the index closest waypoint to car 
-		index = get_closest_waypoint(self.base_waypoints, self.car_pose)
-		self.closest_wp_index = index
-
-		if self.closest_wp_index == -1 :
-			return
-
-		# otherwise prepare next 	
-		waypoints_ahead = []
-
-		vel = self.velocity 
-		# if we are in the mode of decelerating for a red light
-		if self.vel_incr != 0 :
-			vel = 0
-
-#		rospy.logwarn("\n- preparing Lane - 20 waypoints!!!! starting with wp_ix = %d to vel = %f", self.closest_wp_index, vel)
-
-		for i in range(LOOKAHEAD_WPS):
-			ix = (self.closest_wp_index + i) % len(self.base_waypoints)
-
-
-#			rospy.logwarn("WPLoop: setting waypoints[%d].velocity = %f", ix, vel)
-			self.set_waypoint_velocity( self.base_waypoints, 
-													 			  ix, 
-												 			   	vel)
-
-			waypoints_ahead.append(self.base_waypoints[ix])
-
-
-		# structure the data to match the expected styx_msgs/Lane form
-		lane = Lane()
-		lane.waypoints = waypoints_ahead  		# list of waypoints ahead of the car
-		lane.header.stamp = rospy.Time.now()  # timestamp
-		lane.header.frame_id = self.frame_id
-
-		# publish Lane 
-#		rospy.logwarn ("In WPUloop: about to publish lane")
-		self.final_waypoints_pub.publish(lane)
-
+#		rospy.logwarn("WPU_cb: car_pose = %d:%d \n", self.car_pose.position.x, 
+#																							self.car_pose.position.y)
+	
 
 
 
@@ -214,6 +238,7 @@ class WaypointUpdater(object):
 
 			# set vel_incr so the loop above will catch and set appropriate velocities 
 			self.vel_incr = vel_at_light_stop / num_of_wps
+##			rospy.logwarn("WPU Incremental velocity to decrease by is %f", self.vel_incr)
 
 			# start from wp closest to car decreasing velocity until 0 @ light_stop
 #			for i in range (num_of_wps):
@@ -238,11 +263,11 @@ class WaypointUpdater(object):
 	
 			# if previously was RED light and now likely GREEN, retore velocities 
 			if self.vel_incr == 0: 
-				rospy.logwarn("WPU: No need to restore velocity.... did not decelerate previously!!!")
+#				rospy.logwarn("WPU: No need to restore velocity.... did not decelerate previously!!!")
 				return
 
 			# let's restore velocity at wps we decelerated above when TL was RED
-			rospy.logwarn("WPU: Light switched from RED to GREEN")
+#			rospy.logwarn("WPU: Light switched from RED to GREEN")
 
 #			velocity_to_set = self.get_waypoint_velocity( self.base_waypoints[self.light_stop_wpix - num_of_wps] )
 
