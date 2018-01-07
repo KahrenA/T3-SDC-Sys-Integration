@@ -31,6 +31,9 @@ class TLDetector(object):
 			self.lights = []
 			self.light_pose = None
 
+			self.light_to_wp_map = []
+			self.stop_wp = None
+
 			sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
 			self.sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
@@ -42,6 +45,7 @@ class TLDetector(object):
 			 will not be available. You'll need to rely on the position of the light and 
 			 the camera image to predict it.
 			'''
+
 			sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, 
 																															self.traffic_cb)
 
@@ -54,7 +58,7 @@ class TLDetector(object):
 																												Int32, queue_size=1)
 
 			self.CVbridge = CvBridge()
-			self.light_classifier = TLClassifier(simulation=True)
+#			self.light_classifier = TLClassifier(simulation=True)
  
 			self.listener = tf.TransformListener()
 
@@ -63,8 +67,7 @@ class TLDetector(object):
 			self.last_wp = -1
 			self.state_count = 0
 
-			self.light_to_wp_map = []
-			self.stop_wp = None
+
 			self.light_state = TrafficLight.UNKNOWN
 
 			rospy.logwarn("TLDetector_Init done!")
@@ -254,7 +257,7 @@ class TLDetector(object):
 			# TrafficLight.YELLOW; TrafficLight.RED; TrafficLight.GREEN; TrafficLight.UNKNOWN
 			#------------------------------------
 			rospy.logwarn("GET_LIGHT_STATE:::::::::::::::::::::: TRAFFIC LIGHT STATE %d", light.state)
-#			return light.state 
+			return light.state 
 		
 	
  			# -----------------------------------
